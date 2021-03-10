@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "stdio.h": "c",
+        "ec200x_mqtt.h": "c",
+        "cstdlib": "c"
+    }
+}
