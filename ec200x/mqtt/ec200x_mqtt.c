@@ -159,14 +159,14 @@ static int cmd_qmtrecv_ret(char *data, uint32_t len)
 
     p = skip_chr(',', p);
 
-    pp = p++;
+    pp = ++p;
     p = skip_chr('\"', p);
-    if(32 <= (p - pp)) {
+    if(32 <= (p - pp - 1)) {
         printk("topic len err %ld\r\n", (p - pp));
         return -3;
     }
-    memcpy(msg.topic, pp, (p - pp));
-    msg.topic[(p - pp)] = 0;
+    memcpy(msg.topic, pp, (p - pp - 1));
+    msg.topic[(p - pp - 1)] = 0;
 
     p = skip_chr(',', p);
     msg.payload_len = atoi(p);
@@ -185,22 +185,8 @@ static int cmd_qmtrecv_ret(char *data, uint32_t len)
     msg.paylod = pp;
     msg.paylod[msg.payload_len] = 0;
 
-    // printk("topic:   %s\r\n", msg.topic);
-    // printk("msg_id:  %d\r\n", msg.msgid);
-    // printk("msg_len: %d\r\n", msg.payload_len);
-    // printk("msg:    \'%s\'\r\n", msg.paylod);
-
-#if 0
-    static int cnt = 0;
-    char temp[32];
-    size_t llen = snprintf(temp, sizeof(temp), "%d", cnt++);
-
-    temp[llen] = 0xAA;
-
-    ec200x_mqtt_pub(&ec200x_mqtt, "xel", temp, llen + 1);
-#else
     if(mqtt_cb) { return mqtt_cb(&msg); }
-#endif
+
     return -1;
 }
 
@@ -236,14 +222,14 @@ int ec200x_mqtt_cfg(struct ec200x_mqtt_t *mqtt)
     struct ec200x_mqtt_cfg_t *cfg = &mqtt->cfg;
 
     /* 发送与接收模式需要一致 */
-    if(cfg->dataformat.send_mode != cfg->dataformat.recv_mode) {
+    if(cfg->qmtcfg.dataformat.send_mode != cfg->qmtcfg.dataformat.recv_mode) {
         printk("dataformat: send_mode should equal recv_mode\r\n");
         return -CMD_ERR_UNKNOWN;
     }
 
-    if(cfg->dataformat.flag) {
+    if(cfg->qmtcfg.dataformat.flag) {
         len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-                "AT+QMTCFG=\"dataformat\",%d,%d,%d\r\n", mqtt->client_idx, cfg->dataformat.send_mode, cfg->dataformat.recv_mode);
+                "AT+QMTCFG=\"dataformat\",%d,%d,%d\r\n", mqtt->client_idx, cfg->qmtcfg.dataformat.send_mode, cfg->qmtcfg.dataformat.recv_mode);
 
         printk("\'%s\'\r\n", mqtt_temp_buf);
 
@@ -255,7 +241,7 @@ int ec200x_mqtt_cfg(struct ec200x_mqtt_t *mqtt)
 
         /* send/mode */
         len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-                "AT+QMTCFG=\"send/mode\",%d,%d\r\n", mqtt->client_idx, cfg->dataformat.send_mode);
+                "AT+QMTCFG=\"send/mode\",%d,%d\r\n", mqtt->client_idx, cfg->qmtcfg.dataformat.send_mode);
 
         printk("\'%s\'\r\n", mqtt_temp_buf);
 
@@ -279,9 +265,9 @@ int ec200x_mqtt_cfg(struct ec200x_mqtt_t *mqtt)
         }
     }
 
-    if(cfg->recv_mode.flag) {
+    if(cfg->qmtcfg.recv_mode.flag) {
         len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-                "AT+QMTCFG=\"recv/mode\",%d,%d,%d\r\n", mqtt->client_idx, cfg->recv_mode.msg_recv_mode, cfg->recv_mode.msg_len_enable);
+                "AT+QMTCFG=\"recv/mode\",%d,%d,%d\r\n", mqtt->client_idx, cfg->qmtcfg.recv_mode.msg_recv_mode, cfg->qmtcfg.recv_mode.msg_len_enable);
 
         printk("\'%s\'\r\n", mqtt_temp_buf);
 

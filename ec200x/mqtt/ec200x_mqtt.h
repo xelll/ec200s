@@ -11,16 +11,18 @@ struct ec200x_mqtt_cfg_t
     int keep_alive_time; /* 0~3600, Default 120 */
 
     struct {
-        int flag; /* 1:en; 0:dis */
-        int msg_recv_mode; /* 0:urc; 1: not urc */
-        int msg_len_enable; /* 1: add len in msg; 0: no len in msg */
-    } recv_mode;
+        struct {
+            int flag; /* 1:en; 0:dis */
+            int msg_recv_mode; /* 0:urc; 1: not urc */
+            int msg_len_enable; /* 1: add len in msg; 0: no len in msg */
+        } recv_mode;
 
-    struct {
-        int flag; /* 1:en; 0:dis */
-        int send_mode; /* 0:chr; 1:hex */
-        int recv_mode; /* 0:chr; 1:hex */
-    } dataformat;
+        struct {
+            int flag; /* 1:en; 0:dis */
+            int send_mode; /* 0:chr; 1:hex */
+            int recv_mode; /* 0:chr; 1:hex */
+        } dataformat;
+    } qmtcfg;
 
     struct {
         uint16_t port; /* 1~65535 */
