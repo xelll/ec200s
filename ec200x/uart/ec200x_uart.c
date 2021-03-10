@@ -291,7 +291,7 @@ int ec200x_device_init(struct ec200x_uart_hw_info_t *hw_info)
     }
 
     /* 跳过模块发送 '\r\nRDY\r\n' */
-    msleep(1500);
+    sleep(2);
 
     fpioa_set_function(hw_info->io_tx, FUNC_UART1_TX + hw_info->uart_dev * 2);
     fpioa_set_function(hw_info->io_rx, FUNC_UART1_RX + hw_info->uart_dev * 2);

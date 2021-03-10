@@ -100,6 +100,21 @@ int at_ec200x_wait_connect(uint32_t time_out_ms)
     return at_ec200x_set_cmd_echo_mode(0);
 }
 
+int at_ec200x_parse_unk(char *data, uint32_t len)
+{
+    /* 非常丑的实现 */
+    extern uint8_t query_imei_flag;
+    extern int cmd_imei_ret(char *data, uint32_t len);
+
+    if(query_imei_flag && (19 == len)) {
+        query_imei_flag = cmd_imei_ret(data, len);
+    } else {
+        print_hex_array("UNK", (uint8_t *)data, len);
+    }
+
+    return 0;
+}
+
 int at_ec200x_parse_msg(void)
 {
     int ret = -CMD_ERR_UNKNOWN;
@@ -152,7 +167,8 @@ int at_ec200x_send_cmd_wait_ack(const char *cmd, size_t cmd_len, char *ack, uint
         wait_cnt += 5;
         if(wait_cnt > timeout_ms) {
             printk("TMO %s\r\n", __func__);
-            return urc_ret;
+
+            return (urc_ret == CMD_ERR_NONE) ? (-CMD_ERR_WAIT_TIMEOUT) : urc_ret;
         }
 
         mb();
@@ -187,20 +203,37 @@ int at_ec200x_send_cmd_wait_ack(const char *cmd, size_t cmd_len, char *ack, uint
         }
     }
 
-    return urc_ret;
+    return (urc_ret == CMD_ERR_NONE) ? (-CMD_ERR_UNKNOWN) : urc_ret;
 }
 
-int at_ec200x_parse_unk(char *data, uint32_t len)
+int at_ec200x_exec_cmd_wait_flag(struct ec200x_exec_cmd_wait_flag_t *cmd)
 {
-    /* 非常丑的实现 */
-    extern uint8_t query_imei_flag;
-    extern int cmd_imei_ret(char *data, uint32_t len);
+    int ret = -1;
+    volatile uint32_t retry = 0;
 
-    if(query_imei_flag && (19 == len)) {
-        query_imei_flag = cmd_imei_ret(data, len);
-    } else {
-        print_hex_array("UNK", (uint8_t *)data, len);
+    while(1) {
+        ret = at_ec200x_send_cmd_wait_ack(cmd->cmd, cmd->cmd_len, cmd->cmd_ack, cmd->cmd_tmo_ms);
+
+        if(0x00 != ret) {
+            printk("exec \'%s\' fail %d\r\n", cmd->cmd, ret);
+            return ret;
+        } else {
+            msleep(100);
+
+            at_ec200x_parse_msg();
+            mb();
+
+            if(*cmd->wait_val != cmd->wait_val_invaild) {
+                if(*cmd->wait_val == cmd->wait_val_vaild) { return CMD_ERR_NONE; }
+            }
+        }
+
+        retry ++;
+        if(retry > cmd->wait_retry_cnt) {
+            printk("TMO exec \'%s\'\r\n", cmd->cmd);
+            return -CMD_ERR_WAIT_TIMEOUT;
+        }
     }
 
-    return 0;
+    return CMD_ERR_NONE;
 }

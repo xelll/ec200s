@@ -11,6 +11,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+static int cmd_qiact_ret_val = 0;
+
 /* '\r\n+QIACT: 1,1,1,"10.36.118.23"\r\n' */
 static int cmd_qiact_ret(char *data, uint32_t len)
 {
@@ -38,9 +40,15 @@ static int cmd_qiact_ret(char *data, uint32_t len)
 
     printk("ip:\'%s\'\r\n", ec200x_net_info.context_ip.ip);
 
-    ec200x_net_info.context_ip.flag = 1;
+    /* 0.0.0.0 */
+    if(7 >= (p - pp - 2)) {
+        printk("ip error len\r\n");
+        return CMD_ERR_LEN_ERR;
+    }
 
-    return 0;
+    cmd_qiact_ret_val = 0;
+
+    return CMD_ERR_NONE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -60,8 +68,26 @@ const uint32_t net_cmd_tabsz = sizeof(net_cmds) / sizeof(struct at_urc_t);
 ///////////////////////////////////////////////////////////////////////////////
 struct ec200x_context_ip_t * ec200x_net_get_ip(void)
 {
-    ec200x_net_info.context_ip.flag = 0;
+#if 1
+    struct ec200x_exec_cmd_wait_flag_t cmd;
 
+    cmd.cmd = "AT+QIACT?\r\n";
+    cmd.cmd_len = 11;
+    cmd.cmd_ack = "\r\nOK\r\n";
+    cmd.cmd_tmo_ms = 1000 * 150;
+
+    cmd_qiact_ret_val = 0x1000;
+
+    cmd.wait_val = &cmd_qiact_ret_val;
+    cmd.wait_val_invaild = cmd_qiact_ret_val;
+    cmd.wait_val_vaild = 0x00;
+    cmd.wait_retry_cnt = 2;
+
+    if(0x00 != at_ec200x_exec_cmd_wait_flag(&cmd)) {
+        return NULL;
+    }
+
+#else
     int ret = at_ec200x_send_cmd_wait_ack("AT+QIACT?\r\n", 11, "\r\nOK\r\n", 1000 * 150);
 
     if(0x00 != ret) {
@@ -69,6 +95,7 @@ struct ec200x_context_ip_t * ec200x_net_get_ip(void)
 
         return NULL;
     }
+#endif
 
     return &ec200x_net_info.context_ip;
 }

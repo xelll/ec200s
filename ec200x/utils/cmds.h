@@ -236,7 +236,6 @@ void ec200x_gps_print(struct ec200x_gps_info_t *info);
 ///////////////////////////////////////////////////////////////////////////////
 struct ec200x_context_ip_t
 {
-    uint8_t flag;
     uint8_t contextID;
     uint8_t contextType;
     uint8_t contextState;

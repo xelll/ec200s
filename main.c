@@ -34,13 +34,13 @@ static void init_ec200x_mqtt_cfg(void)
 
     cfg->keep_alive_time = 0;
 
-    cfg->dataformat.flag = 1;
-    cfg->dataformat.recv_mode = MQTT_RECV_SEND_MODE_HEX;
-    cfg->dataformat.send_mode = MQTT_RECV_SEND_MODE_HEX;
+    cfg->qmtcfg.dataformat.flag = 1;
+    cfg->qmtcfg.dataformat.recv_mode = MQTT_RECV_SEND_MODE_HEX;
+    cfg->qmtcfg.dataformat.send_mode = MQTT_RECV_SEND_MODE_HEX;
 
-    cfg->recv_mode.flag = 1;
-    cfg->recv_mode.msg_recv_mode = 0;
-    cfg->recv_mode.msg_len_enable = 1;
+    cfg->qmtcfg.recv_mode.flag = 1;
+    cfg->qmtcfg.recv_mode.msg_recv_mode = 0;
+    cfg->qmtcfg.recv_mode.msg_len_enable = 1;
 
     cfg->qmtopen.port = 1883;
     strncpy(cfg->qmtopen.hostname, "203.195.245.13", sizeof(cfg->qmtopen.hostname));
@@ -96,6 +96,7 @@ int main(int argc, char **argv)
     if(0 > at_ec200x_wait_connect(5 * 1000)) {
         printk("wait module fail\r\n");
     }
+    sleep(1);
 
     char *iccid = ec200x_get_ccid();
     if(NULL != iccid) {
