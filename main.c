@@ -96,7 +96,6 @@ int main(int argc, char **argv)
     if(0 > at_ec200x_wait_connect(5 * 1000)) {
         printk("wait module fail\r\n");
     }
-    sleep(1);
 
     char *iccid = ec200x_get_ccid();
     if(NULL != iccid) {
