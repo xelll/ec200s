@@ -73,7 +73,7 @@ int at_ec200x_set_cmd_echo_mode(uint8_t mode)
 {
     const char *mode_str[2] = {"ATE0\r\n", "ATE1\r\n"};
 
-    int ret = 0;
+    int ret = -CMD_ERR_UNKNOWN;
 
     ret = at_ec200x_send_cmd_wait_ack(mode_str[mode & 0x01], 6, "OK\r\n", 300);
 
@@ -120,6 +120,7 @@ int at_ec200x_parse_msg(void)
                     // print_hex_array("UNK", (uint8_t *)buf, msg.len);
                     at_ec200x_parse_unk(buf, msg.len);
                 }
+
                 ec200x_uart_free_msg(&msg);
             }
         } else { break; }
@@ -152,7 +153,8 @@ int at_ec200x_send_cmd_wait_ack(const char *cmd, size_t cmd_len, char *ack, uint
         wait_cnt += 5;
         if(wait_cnt > timeout_ms) {
             printk("TMO %s\r\n", __func__);
-            return urc_ret;
+
+            return (urc_ret == CMD_ERR_NONE) ? (-CMD_ERR_WAIT_TIMEOUT) : urc_ret;
         }
 
         mb();
@@ -167,6 +169,7 @@ int at_ec200x_send_cmd_wait_ack(const char *cmd, size_t cmd_len, char *ack, uint
 
                 if(strncmp(buf, ack, ack_len) == 0) {
                     ec200x_uart_free_msg(&msg);
+printk("%s->%d\r\n", __func__, __LINE__);
                     return CMD_ERR_NONE;
                 }else {
                     struct at_urc_t * urc = at_ec200x_get_urc_obj(buf, msg.len);
@@ -176,18 +179,20 @@ int at_ec200x_send_cmd_wait_ack(const char *cmd, size_t cmd_len, char *ack, uint
 
                         /* 接收到了CME/ERROR */
                         if((-CMD_ERR_CME_0) > urc_ret) {
+printk("%s->%d\r\n", __func__, __LINE__);
                             return urc_ret;
                         }
                     } else {
                         at_ec200x_parse_unk(buf, msg.len);
                     }
                 }
+
                 ec200x_uart_free_msg(&msg);
             }
         }
     }
 
-    return urc_ret;
+    return (urc_ret == CMD_ERR_NONE) ? (-CMD_ERR_UNKNOWN) : urc_ret;
 }
 
 int at_ec200x_parse_unk(char *data, uint32_t len)

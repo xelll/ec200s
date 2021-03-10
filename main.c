@@ -18,8 +18,11 @@ static int mqtt_cb(struct ec200x_mqtt_msg_t *msg)
     printk("topic:   %s\r\n", msg->topic);
     printk("msg_id:  %d\r\n", msg->msgid);
     printk("msg_len: %d\r\n", msg->payload_len);
-    printk("msg:    \'%s\'\r\n", msg->paylod);
+    // printk("msg:    \'%s\'\r\n", msg->paylod);
+    print_hex_array("msg", (uint8_t *)msg->paylod, msg->payload_len);
 #endif
+
+    ec200x_mqtt_pub(&ec200x_mqtt, "xel", "test", 4);
 
     return 0;
 }
@@ -34,20 +37,27 @@ static void init_ec200x_mqtt_cfg(void)
 
     cfg->keep_alive_time = 0;
 
-    cfg->dataformat.flag = 1;
-    cfg->dataformat.recv_mode = MQTT_RECV_SEND_MODE_HEX;
-    cfg->dataformat.send_mode = MQTT_RECV_SEND_MODE_HEX;
+    cfg->qmtcfg.dataformat.flag = 0;
+    cfg->qmtcfg.dataformat.recv_mode = MQTT_RECV_SEND_MODE_HEX;
+    cfg->qmtcfg.dataformat.send_mode = MQTT_RECV_SEND_MODE_HEX;
 
-    cfg->recv_mode.flag = 1;
-    cfg->recv_mode.msg_recv_mode = 0;
-    cfg->recv_mode.msg_len_enable = 1;
+    cfg->qmtcfg.recv_mode.flag = 1;
+    cfg->qmtcfg.recv_mode.msg_recv_mode = 0;
+    cfg->qmtcfg.recv_mode.msg_len_enable = 1;
+
+    cfg->qmtcfg.hex_mode.flag = 1;
+    cfg->qmtcfg.hex_mode.hex_asc_mode = '1';
 
     cfg->qmtopen.port = 1883;
     strncpy(cfg->qmtopen.hostname, "203.195.245.13", sizeof(cfg->qmtopen.hostname));
 
     strncpy(cfg->qmtconn.client_id, "ec200x", sizeof(cfg->qmtconn.client_id));
-    memset(cfg->qmtconn.username, 0, sizeof(cfg->qmtconn.username));
-    memset(cfg->qmtconn.password, 0, sizeof(cfg->qmtconn.password));
+
+    // memset(cfg->qmtconn.username, 0, sizeof(cfg->qmtconn.username));
+    // memset(cfg->qmtconn.password, 0, sizeof(cfg->qmtconn.password));
+
+    strncpy(cfg->qmtconn.username, "test", sizeof(cfg->qmtconn.username));
+    strncpy(cfg->qmtconn.password, "test", sizeof(cfg->qmtconn.password));
 
     cfg->qmtsub.qos = 0;
     cfg->qmtsub.msgid = 1;
@@ -69,13 +79,13 @@ static void init_ec200x_dev_cfg(void)
     ec200x_uart_hw_info.uart_dev = UART_DEVICE_1;
     ec200x_uart_hw_info.uart_baud = 115200;
 
-    ec200x_uart_hw_info.io_tx = 24;
-    ec200x_uart_hw_info.io_rx = 25;
+    ec200x_uart_hw_info.io_tx = 26;
+    ec200x_uart_hw_info.io_rx = 27;
 
-    ec200x_uart_hw_info.io_pwr = 23;
+    ec200x_uart_hw_info.io_pwr = 29;
     ec200x_uart_hw_info.gpiohs_pwr = 0;
 
-    ec200x_uart_hw_info.io_sta = 22;
+    ec200x_uart_hw_info.io_sta = -1;
     ec200x_uart_hw_info.gpiohs_sta = 1;
 }
 
@@ -119,7 +129,7 @@ int main(int argc, char **argv)
     ec200x_mqtt_conn(&ec200x_mqtt);
     ec200x_mqtt_sub(&ec200x_mqtt);
 
-    // uint8_t flag = 0;
+    uint8_t flag = 0;
     while (1) {
         msleep(600);
 
@@ -137,7 +147,15 @@ int main(int argc, char **argv)
         //         printk("get gps info fail\r\n");
         //     }
         // }
+
         at_ec200x_parse_msg();
+
+        flag ++;
+        if(flag >= 10) {
+            flag = 0;
+            extern int ec200x_get_lbs_loc(void);
+            ec200x_get_lbs_loc();
+        }
     }
 
     return 0;

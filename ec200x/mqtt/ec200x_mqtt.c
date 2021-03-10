@@ -159,14 +159,15 @@ static int cmd_qmtrecv_ret(char *data, uint32_t len)
 
     p = skip_chr(',', p);
 
-    pp = p++;
+    pp = ++p;
+
     p = skip_chr('\"', p);
-    if(32 <= (p - pp)) {
+    if(32 <= (p - pp - 1)) {
         printk("topic len err %ld\r\n", (p - pp));
         return -3;
     }
-    memcpy(msg.topic, pp, (p - pp));
-    msg.topic[(p - pp)] = 0;
+    memcpy(msg.topic, pp, (p - pp - 1));
+    msg.topic[(p - pp - 1)] = 0;
 
     p = skip_chr(',', p);
     msg.payload_len = atoi(p);
@@ -178,29 +179,34 @@ static int cmd_qmtrecv_ret(char *data, uint32_t len)
     p--;
 
     if(msg.payload_len != (p - pp)) {
-        printk("get error payload len %ld %d \r\n", (p - pp), msg.payload_len);
-        return -3;
+        int err = 1;
+
+        if('1' == ec200x_mqtt.cfg.qmtcfg.hex_mode.hex_asc_mode) {
+            if((msg.payload_len * 2) == (p - pp)) {
+                err = 0;
+                msg.payload_len *= 2;
+            }
+        }
+
+        if(err){
+            printk("get error payload len %ld %d \r\n", (p - pp), msg.payload_len);
+            return -3;
+        }
     }
 
     msg.paylod = pp;
     msg.paylod[msg.payload_len] = 0;
 
-    // printk("topic:   %s\r\n", msg.topic);
-    // printk("msg_id:  %d\r\n", msg.msgid);
-    // printk("msg_len: %d\r\n", msg.payload_len);
-    // printk("msg:    \'%s\'\r\n", msg.paylod);
+    if('1' == ec200x_mqtt.cfg.qmtcfg.hex_mode.hex_asc_mode) {
+        hex2str(msg.topic, msg.topic);
 
-#if 0
-    static int cnt = 0;
-    char temp[32];
-    size_t llen = snprintf(temp, sizeof(temp), "%d", cnt++);
+        hexstr2_hex(msg.paylod, msg.paylod, msg.payload_len);
 
-    temp[llen] = 0xAA;
+        msg.payload_len /= 2;
+    }
 
-    ec200x_mqtt_pub(&ec200x_mqtt, "xel", temp, llen + 1);
-#else
     if(mqtt_cb) { return mqtt_cb(&msg); }
-#endif
+
     return -1;
 }
 
@@ -236,14 +242,14 @@ int ec200x_mqtt_cfg(struct ec200x_mqtt_t *mqtt)
     struct ec200x_mqtt_cfg_t *cfg = &mqtt->cfg;
 
     /* 发送与接收模式需要一致 */
-    if(cfg->dataformat.send_mode != cfg->dataformat.recv_mode) {
+    if(cfg->qmtcfg.dataformat.send_mode != cfg->qmtcfg.dataformat.recv_mode) {
         printk("dataformat: send_mode should equal recv_mode\r\n");
         return -CMD_ERR_UNKNOWN;
     }
 
-    if(cfg->dataformat.flag) {
+    if(cfg->qmtcfg.dataformat.flag) {
         len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-                "AT+QMTCFG=\"dataformat\",%d,%d,%d\r\n", mqtt->client_idx, cfg->dataformat.send_mode, cfg->dataformat.recv_mode);
+                "AT+QMTCFG=\"dataformat\",%d,%d,%d\r\n", mqtt->client_idx, cfg->qmtcfg.dataformat.send_mode, cfg->qmtcfg.dataformat.recv_mode);
 
         printk("\'%s\'\r\n", mqtt_temp_buf);
 
@@ -255,13 +261,39 @@ int ec200x_mqtt_cfg(struct ec200x_mqtt_t *mqtt)
 
         /* send/mode */
         len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-                "AT+QMTCFG=\"send/mode\",%d,%d\r\n", mqtt->client_idx, cfg->dataformat.send_mode);
+                "AT+QMTCFG=\"send/mode\",%d,%d\r\n", mqtt->client_idx, cfg->qmtcfg.dataformat.send_mode);
 
         printk("\'%s\'\r\n", mqtt_temp_buf);
 
         ret = at_ec200x_send_cmd_wait_ack(mqtt_temp_buf, len, "\r\nOK\r\n", 500);
         if(0x00 != ret) {
             printk("cfg send/mode fail %d\r\n", ret);
+            return ret;
+        }
+    }
+
+    if(cfg->qmtcfg.recv_mode.flag) {
+        len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
+                "AT+QMTCFG=\"recv/mode\",%d,%d,%d\r\n", mqtt->client_idx, cfg->qmtcfg.recv_mode.msg_recv_mode, cfg->qmtcfg.recv_mode.msg_len_enable);
+
+        printk("\'%s\'\r\n", mqtt_temp_buf);
+
+        ret = at_ec200x_send_cmd_wait_ack(mqtt_temp_buf, len, "\r\nOK\r\n", 500);
+        if(0x00 != ret) {
+            printk("cfg recv/mode fail %d\r\n", ret);
+            return ret;
+        }
+    }
+
+    if(cfg->qmtcfg.hex_mode.flag) {
+        len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
+                "AT+QMTCFG=\"hexmode\",%d,%c\r\n", mqtt->client_idx, cfg->qmtcfg.hex_mode.hex_asc_mode);
+
+        printk("\'%s\'\r\n", mqtt_temp_buf);
+
+        ret = at_ec200x_send_cmd_wait_ack(mqtt_temp_buf, len, "\r\nOK\r\n", 500);
+        if(0x00 != ret) {
+            printk("cfg hexmode fail %d\r\n", ret);
             return ret;
         }
     }
@@ -275,19 +307,6 @@ int ec200x_mqtt_cfg(struct ec200x_mqtt_t *mqtt)
         ret = at_ec200x_send_cmd_wait_ack(mqtt_temp_buf, len, "\r\nOK\r\n", 500);
         if(0x00 != ret) {
             printk("cfg keepalive fail %d\r\n", ret);
-            return ret;
-        }
-    }
-
-    if(cfg->recv_mode.flag) {
-        len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-                "AT+QMTCFG=\"recv/mode\",%d,%d,%d\r\n", mqtt->client_idx, cfg->recv_mode.msg_recv_mode, cfg->recv_mode.msg_len_enable);
-
-        printk("\'%s\'\r\n", mqtt_temp_buf);
-
-        ret = at_ec200x_send_cmd_wait_ack(mqtt_temp_buf, len, "\r\nOK\r\n", 500);
-        if(0x00 != ret) {
-            printk("cfg recv/mode fail %d\r\n", ret);
             return ret;
         }
     }
@@ -390,8 +409,15 @@ int ec200x_mqtt_sub(struct ec200x_mqtt_t *mqtt)
 
     struct ec200x_mqtt_cfg_t *cfg = &mqtt->cfg;
 
-    len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-            "AT+QMTSUB=%d,%d,\"%s\",%d\r\n", mqtt->client_idx, cfg->qmtsub.msgid, cfg->qmtsub.topic, cfg->qmtsub.qos);
+    if('0' == cfg->qmtcfg.hex_mode.hex_asc_mode) {
+        len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
+                "AT+QMTSUB=%d,%d,\"%s\",%d\r\n", mqtt->client_idx, cfg->qmtsub.msgid, cfg->qmtsub.topic, cfg->qmtsub.qos);
+    } else {
+        char temp[64];
+        str2hex(cfg->qmtsub.topic, temp);
+        len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
+                "AT+QMTSUB=%d,%d,\"%s\",%d\r\n", mqtt->client_idx, cfg->qmtsub.msgid, temp, cfg->qmtsub.qos);
+    }
 
     printk("\'%s\'\r\n", mqtt_temp_buf);
 
@@ -432,8 +458,16 @@ int ec200x_mqtt_pub(struct ec200x_mqtt_t *mqtt, char *topic, char *msg, uint32_t
 
     struct ec200x_mqtt_cfg_t *cfg = &mqtt->cfg;
 
-    len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
-            "AT+QMTPUBEX=%d,%d,%d,%d,\"%s\",%d\r\n", mqtt->client_idx, 0, 0, 0, topic, msg_len);
+    if('0' == cfg->qmtcfg.hex_mode.hex_asc_mode) {
+        len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
+                "AT+QMTPUBEX=%d,%d,%d,%d,\"%s\",%d\r\n", mqtt->client_idx, 0, 0, 0, topic, msg_len);
+    } else {
+        char temp[64];
+        str2hex(topic, temp);
+
+        len = snprintf(mqtt_temp_buf, sizeof(mqtt_temp_buf), \
+                "AT+QMTPUBEX=%d,%d,%d,%d,\"%s\",%d\r\n", mqtt->client_idx, 0, 0, 0, temp, msg_len);
+    }
 
     printk("\'%s\'", mqtt_temp_buf);
 
@@ -443,10 +477,18 @@ int ec200x_mqtt_pub(struct ec200x_mqtt_t *mqtt, char *topic, char *msg, uint32_t
         return ret;
     }
 
+    char *pub_msg = msg;
+
+    if('1' == cfg->qmtcfg.hex_mode.hex_asc_mode) {
+        pub_msg = mqtt_temp_buf;
+        hex_str((const uint8_t *)msg, msg_len, (uint8_t *)mqtt_temp_buf);
+        msg_len *= 2;
+    }
+
     qmt_pubex_ret = 0x1000;
 
     /* 等到了OK */
-    ret = at_ec200x_send_cmd_wait_ack(msg, msg_len, "\r\nOK\r\n", 1000 * 15);
+    ret = at_ec200x_send_cmd_wait_ack(pub_msg, msg_len, "\r\nOK\r\n", 1000 * 15);
     if(0x00 != ret) {
         printk("qmtpub msg fail %d\r\n", ret);
         return ret;

@@ -181,6 +181,23 @@ struct ec200x_basic_info_t
     char imei[24];
 };
 
+struct ec200x_exec_cmd_wait_flag_t
+{
+    const char *cmd;
+    size_t cmd_len;
+    char *cmd_ack;
+    uint32_t cmd_tmo_ms;
+
+    int *wait_val;
+    int wait_val_vaild;
+    int wait_val_invaild;
+
+    uint32_t retry_cnt;
+};
+
+int at_ec200x_exec_cmd_wait_flag(struct ec200x_exec_cmd_wait_flag_t *cmd);
+
+
 extern struct ec200x_basic_info_t ec200x_basic_info;
 
 extern struct at_urc_t basic_cmds[];
@@ -236,7 +253,6 @@ void ec200x_gps_print(struct ec200x_gps_info_t *info);
 ///////////////////////////////////////////////////////////////////////////////
 struct ec200x_context_ip_t
 {
-    uint8_t flag;
     uint8_t contextID;
     uint8_t contextType;
     uint8_t contextState;
