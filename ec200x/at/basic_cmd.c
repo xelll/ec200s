@@ -14,9 +14,11 @@ static int cmd_cme_err(char *data, uint32_t len)
 {
     char *p = data + 14;
 
-    print_hex_array("cme", (uint8_t *)data, len);
+    // print_hex_array("cme", (uint8_t *)data, len);
 
     int cme = atoi(p);
+
+    printk("got cme %d\r\n", cme);
 
     return -(CMD_ERR_CME_0 + cme);
 }
@@ -66,6 +68,11 @@ static int cmd_rdy_ret(char *data, uint32_t len)
 
     return CMD_ERR_NONE;
 }
+
+static int cmd_at_ate_ret(char *data, uint32_t len)
+{
+    return CMD_ERR_NONE;
+}
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -77,6 +84,8 @@ struct at_urc_t basic_cmds[] = {
     {"\r\nERROR", "\r\n", cmd_error_ret},
 
     {"\r\nRDY", "\r\n", cmd_rdy_ret},
+    {"AT\r", "\r\n", cmd_at_ate_ret},
+    {"ATE0\r", "\r\n", cmd_at_ate_ret},
 
     {"\r\n+CSQ", "\r\n", cmd_csq_ret},
     {"\r\n+QCCID", "\r\n", cmd_qccid_ret},

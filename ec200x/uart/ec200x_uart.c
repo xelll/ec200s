@@ -285,13 +285,14 @@ int ec200x_device_init(struct ec200x_uart_hw_info_t *hw_info)
                 break;
             }
         }
-    } else {
-        /* 强制等待6s，模块应该可以启动完成了。 */
-        sleep(6);
     }
+    // else {
+    //     /* 强制等待6s，模块应该可以启动完成了。 */
+    //     sleep(6);
+    // }
 
-    /* 跳过模块发送 '\r\nRDY\r\n' */
-    sleep(2);
+    // /* 跳过模块发送 '\r\nRDY\r\n' */
+    // sleep(2);
 
     fpioa_set_function(hw_info->io_tx, FUNC_UART1_TX + hw_info->uart_dev * 2);
     fpioa_set_function(hw_info->io_rx, FUNC_UART1_RX + hw_info->uart_dev * 2);

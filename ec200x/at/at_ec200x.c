@@ -88,6 +88,11 @@ int at_ec200x_wait_connect(uint32_t time_out_ms)
 {
     volatile uint32_t wait_cnt = 0;
 
+    /* 等待收到RDY */
+    if(0x00 == at_ec200x_send_cmd_wait_ack("", 0, "\r\nRDY\r\n", 1000 * 10)) {
+        time_out_ms = 1000; /* 收到了RDY，那我们只需要尝试2次握手即可 */
+    }
+
     while(1) {
         if(0x00 == at_ec200x_send_cmd_wait_ack("AT\r\n", 4, "OK\r\n", 500)) {
             break;
